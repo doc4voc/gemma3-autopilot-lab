@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemma 3 AutoPilot: Related Work Survey & Improvement Notes - 2026-02-07</title>
+  <style>
+    :root{
+      --bg: #f3f4f6;
+      --paper: #ffffff;
+      --ink: #111827;
+      --muted: #4b5563;
+      --line: #9ca3af;
+      --accent: #1d4ed8;
+      --good: #166534;
+      --warn: #b45309;
+    }
+    *{ box-sizing: border-box; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      line-height: 1.6;
+    }
+    a{ color: var(--accent); text-decoration: none; }
+    a:hover{ text-decoration: underline; }
+
+    .sheet{
+      width: 210mm;
+      min-height: 297mm;
+      margin: 8mm auto;
+      padding: 12mm;
+      background: var(--paper);
+      border: 1px solid #d1d5db;
+      box-shadow: 0 2mm 6mm rgba(0,0,0,0.12);
+    }
+    .panel{
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #ffffff;
+    }
+    h1, h2, h3, h4{ margin: 0 0 10px; }
+    h1{ font-size: 22px; color: #1e3a8a; letter-spacing: 0.2px; }
+    h2{ font-size: 16px; color: #1d4ed8; margin-top: 2px; }
+    h3{ font-size: 14px; color: #1d4ed8; }
+    h4{ font-size: 13px; color: #1f2937; }
+    p, li{ color: var(--ink); }
+    .muted{ color: var(--muted); }
+    .small{ font-size: 12px; }
+    .mono{ font-family: Consolas, "Courier New", monospace; font-size: 12px; }
+    .tag{
+      display: inline-block;
+      padding: 2px 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #ffffff;
+      color: #1f2937;
+      font-size: 11px;
+      margin-right: 6px;
+      margin-bottom: 4px;
+    }
+    .kpi-grid{
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .kpi{
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 10px;
+      background: #ffffff;
+    }
+    .kpi .k{ color: var(--muted); font-size: 12px; }
+    .kpi .v{ font-size: 16px; font-weight: 700; }
+    .good{ color: var(--good); }
+    .warn{ color: var(--warn); }
+
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    th, td{
+      border: 1px solid var(--line);
+      padding: 7px 8px;
+      vertical-align: top;
+    }
+    th{
+      background: #ffffff;
+      color: #1f2937;
+      text-align: left;
+    }
+    .figure{
+      border: 1px dashed var(--line);
+      border-radius: 4px;
+      padding: 10px;
+      background: #ffffff;
+      overflow: auto;
+    }
+    .figure svg{ background: #ffffff; }
+    .callout{
+      border-left: 4px solid var(--accent);
+      padding: 8px 10px;
+      background: #ffffff;
+    }
+    .toc ol{
+      margin: 0;
+      padding-left: 18px;
+    }
+    .tight p{ margin: 6px 0; }
+    .tight ul{ margin: 6px 0; padding-left: 18px; }
+    .tight li{ margin: 4px 0; }
+
+    @media (max-width: 980px) {
+      .sheet{
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 10px;
+        box-shadow: none;
+      }
+      .kpi-grid{ grid-template-columns: 1fr; }
+    }
+
+    @page{
+      size: A4 portrait;
+      margin: 12mm;
+    }
+
+    @media print{
+      body{
+        background: #ffffff !important;
+        color: var(--ink) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .sheet{
+        margin: 0;
+        padding: 0;
+        border: 0 !important;
+        box-shadow: none !important;
+        page-break-after: always;
+      }
+      .panel,
+      .kpi,
+      .figure,
+      th,
+      td,
+      .tag,
+      .callout{
+        background: #ffffff !important;
+        box-shadow: none !important;
+      }
+      .panel,
+      .kpi,
+      .figure,
+      th,
+      td,
+      .tag,
+      .callout{
+        border-color: #777777 !important;
+      }
+      a{ color: #1f2937 !important; text-decoration: underline; }
+    }
+  </style>
+</head>
+<body>
+  <section class="sheet">
+    <section class="panel">
+      <h1>Gemma 3 AutoPilot: Related Work Survey &amp; Improvement Notes</h1>
+      <p class="muted small">
+        Date: 2026-02-07<br/>
+        Purpose: 既存研究・実装事例（LLMエージェント、探索メモリ、マップ表現、安全ガード、評価指標）を調査し、現プロジェクトに転用できる改善点と検証計画を整理する。<br/>
+        Scope: 「LLMを主役として戦略と制御を決める」方針は維持しつつ、外部モジュールは <b>ツール/制約/可観測性の補助</b> として利用する。
+      </p>
+      <div>
+        <span class="tag">LLM-driven planning</span>
+        <span class="tag">External memory map</span>
+        <span class="tag">Closed-loop + reflection</span>
+        <span class="tag">Safety shielding</span>
+        <span class="tag">Embodied evaluation</span>
+      </div>
+    </section>
+
+    <section class="panel toc">
+      <h2>Contents</h2>
+      <ol>
+        <li>Executive Summary</li>
+        <li>Context: Current System (as implemented)</li>
+        <li>Related Work Taxonomy</li>
+        <li>What We Can Reuse: Design Patterns</li>
+        <li>Recommended Improvements (Prioritized)</li>
+        <li>Evaluation Plan (paper-grade)</li>
+        <li>References</li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2>1. Executive Summary</h2>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="k">最重要の観察</div>
+          <div class="v">「LLM単体」よりも、<b>技能(スキル)分解</b>と<b>外部メモリ</b>が性能を安定化</div>
+        </div>
+        <div class="kpi">
+          <div class="k">再現性の鍵</div>
+          <div class="v">閉ループ: <b>観測→行動→結果→反省</b> をログで回す</div>
+        </div>
+        <div class="kpi">
+          <div class="k">安全性の鍵</div>
+          <div class="v">「主役はLLM」でも <b>安全シールド</b> は併用が一般的</div>
+        </div>
+      </div>
+
+      <div class="callout tight" style="margin-top:10px;">
+        <p><b>提案の骨子（このプロジェクト向け）</b></p>
+        <ul>
+          <li><b>スキルAPI化:</b> LLMはマクロ行動を選び、低層は実行器が担う（SayCan / Voyagerの系譜）。</li>
+          <li><b>メモリ=地図ツール化:</b> ヒートマップを「問合せ可能な外部知識」にしてLLMへ供給（Tag Map / VLMapsの系譜）。</li>
+          <li><b>反省と再計画:</b> ループ・壁接触・ターゲット接近失敗を「反省メモ」として次周期に反映（ReAct / Reflexion / Inner Monologue）。</li>
+          <li><b>評価の標準化:</b> 成功率＋経路効率（SPL系）＋安全違反率で比較可能にする（Embodied navigation評価）。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>2. Context: Current System (as implemented)</h2>
+      <p class="small muted">
+        本節はコードから確認した要点（主に <span class="mono">src/services/explorationMemory.js</span>, <span class="mono">src/services/ollamaService.js</span>）。
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Current behavior</th>
+            <th>Implication for related-work reuse</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Observation to LLM</td>
+            <td>
+              8本センサ距離、ターゲット距離/角度、ターゲットヒット、Pose(X,Z,Heading)、速度、スタック、履歴、<br/>
+              Exploration Memory(RAG)として <b>frontier/risky/currentCell/sectorSafety/loopRate</b> を圧縮して供給。
+            </td>
+            <td>
+              LLMは「自位置(ix,iz)」と「向き(Heading)」を持つため、<b>地図/候補を言語的に解釈</b>可能。
+              ただしフルラスタではないため、<b>局所パッチの表現</b>が性能を左右。
+            </td>
+          </tr>
+          <tr>
+            <td>Exploration Memory update</td>
+            <td>
+              2mセル。全レイを統合し、レイ上のセルを openHits（自由空間の証拠）として加算。ヒット点セルへ obstacleHits と riskEMA を加算。ループ率(loopRate)も算出。
+            </td>
+            <td>
+              古典的な「占有格子/コストマップ」系の設計思想と整合。<b>frontier定義</b>を強化すると探索効率に直結。
+            </td>
+          </tr>
+          <tr>
+            <td>Safety guard</td>
+            <td>
+              センサ遮断・メモリ遮断（sectorSafety）を用いて forward を抑制し、代替セクタへ偏向。近距離ターゲット接触だけは例外的に前進許容。
+            </td>
+            <td>
+              多くの実ロボ/Embodied系は、LLM主役でも<b>安全シールドを併用</b>する。実験上は「どれだけ介入したか」を指標化すると議論しやすい。
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </section>
+
+  <section class="sheet">
+    <section class="panel">
+      <h2>3. Related Work Taxonomy</h2>
+      <p class="muted small">
+        近い研究を「LLMの役割」と「外部構造（スキル・地図・反省）」で分類する。
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Class</th>
+            <th>LLM role</th>
+            <th>Typical external structure</th>
+            <th>Representative works</th>
+            <th>What matters for this project</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Planner + Skills</td>
+            <td>高レベル手順/選択</td>
+            <td>スキル集合、価値/可否、実行器</td>
+            <td>SayCan [R1], Voyager [R2]</td>
+            <td>連続制御をそのままLLMに投げるより、<b>マクロ行動に分解</b>すると安定しやすい</td>
+          </tr>
+          <tr>
+            <td>Reason+Act loop</td>
+            <td>推論しながら逐次行動</td>
+            <td>観測、行動履歴、反省メモ</td>
+            <td>ReAct [R3], Reflexion [R4], Inner Monologue [R5]</td>
+            <td>ループや壁衝突の「原因」を次周期へ伝える設計が重要（ログ設計にも直結）</td>
+          </tr>
+          <tr>
+            <td>Map as Tool</td>
+            <td>地図を参照して計画</td>
+            <td>クエリ可能なマップ、テキスト化</td>
+            <td>Tag Map [R6], VLMaps [R7]</td>
+            <td>ヒートマップを「説明可能な外部知識」として供給すると、LLMの判断の一貫性が上がる</td>
+          </tr>
+          <tr>
+            <td>Embodied multimodal</td>
+            <td>視覚+言語+行動の統合</td>
+            <td>VLM、行動トークン化</td>
+            <td>PaLM-E [R8], RT-2 [R9]</td>
+            <td>現状はレイ/数値中心だが、将来的にスクリーン理解を足すなら参照価値が高い</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>4. What We Can Reuse: Design Patterns</h2>
+
+      <div class="figure">
+        <h3>4.1 Recommended Control Stack (LLM as main, tools as constraints)</h3>
+        <svg width="100%" viewBox="0 0 980 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" fill="#374151"/>
+            </marker>
+          </defs>
+          <rect x="18" y="34" width="200" height="70" rx="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+          <text x="118" y="62" text-anchor="middle" fill="#111827" font-size="14">Sensors + Pose</text>
+          <text x="118" y="82" text-anchor="middle" fill="#4b5563" font-size="12">8 rays / target / (x,z,heading)</text>
+
+          <rect x="258" y="34" width="250" height="70" rx="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+          <text x="383" y="60" text-anchor="middle" fill="#111827" font-size="14">External Memory Map</text>
+          <text x="383" y="82" text-anchor="middle" fill="#4b5563" font-size="12">openHits / obstacleHits / risk / loop</text>
+
+          <rect x="548" y="34" width="230" height="70" rx="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+          <text x="663" y="60" text-anchor="middle" fill="#111827" font-size="14">LLM Planner</text>
+          <text x="663" y="82" text-anchor="middle" fill="#4b5563" font-size="12">choose strategy + skill</text>
+
+          <rect x="818" y="34" width="145" height="70" rx="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+          <text x="890.5" y="60" text-anchor="middle" fill="#111827" font-size="14">Safety Shield</text>
+          <text x="890.5" y="82" text-anchor="middle" fill="#4b5563" font-size="12">block unsafe</text>
+
+          <rect x="548" y="170" width="230" height="70" rx="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+          <text x="663" y="198" text-anchor="middle" fill="#111827" font-size="14">Skill Executor</text>
+          <text x="663" y="218" text-anchor="middle" fill="#4b5563" font-size="12">macro-&gt;throttle/steer</text>
+
+          <rect x="818" y="170" width="145" height="70" rx="8" fill="none" stroke="#6b7280" stroke-width="2"/>
+          <text x="890.5" y="198" text-anchor="middle" fill="#111827" font-size="14">Apply Control</text>
+
+          <line x1="218" y1="69" x2="258" y2="69" stroke="#374151" stroke-width="2" marker-end="url(#arr2)"/>
+          <line x1="508" y1="69" x2="548" y2="69" stroke="#374151" stroke-width="2" marker-end="url(#arr2)"/>
+          <line x1="778" y1="69" x2="818" y2="69" stroke="#374151" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <line x1="890.5" y1="104" x2="890.5" y2="170" stroke="#374151" stroke-width="2" marker-end="url(#arr2)"/>
+          <line x1="818" y1="205" x2="778" y2="205" stroke="#374151" stroke-width="2" marker-end="url(#arr2)"/>
+
+          <line x1="548" y1="205" x2="508" y2="205" stroke="#374151" stroke-width="2" marker-end="url(#arr2)"/>
+          <line x1="383" y1="104" x2="383" y2="170" stroke="#374151" stroke-width="2" marker-end="url(#arr2)"/>
+        </svg>
+        <p class="small muted">
+          主張: 「LLMが主役」でも、スキル実行器・安全シールド・外部地図は “意思決定の代替” ではなく “意思決定を支える構造” として扱うと再現性が上がる。
+        </p>
+      </div>
+
+      <h3 style="margin-top:12px;">4.2 Patterns distilled</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Pattern</th>
+            <th>What it buys</th>
+            <th>Minimal adaptation here</th>
+            <th>Linked works</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Skill library (macro actions)</td>
+            <td>連続制御のブレを減らし、出力フォーマットも安定</td>
+            <td>LLM出力を <span class="mono">skill</span> + <span class="mono">params</span> に寄せ、実行器で throttle/steer に落とす</td>
+            <td>SayCan [R1], Voyager [R2]</td>
+          </tr>
+          <tr>
+            <td>Closed-loop reflection memory</td>
+            <td>同じミス（壁へ向かう、ループ）を繰り返しにくくする</td>
+            <td>「結果要約（距離変化/衝突/ループ率）」を短文で次周期プロンプトに組み込み、反省欄を保存</td>
+            <td>ReAct [R3], Reflexion [R4], Inner Monologue [R5]</td>
+          </tr>
+          <tr>
+            <td>Map as queryable tool</td>
+            <td>LLMが「どこを探索したか」を言語で扱える</td>
+            <td>ヒートマップを “説明可能な断片” に圧縮（frontier/top-risk/local-patch）し、参照しやすくする</td>
+            <td>Tag Map [R6], VLMaps [R7]</td>
+          </tr>
+          <tr>
+            <td>Standardized embodied metrics</td>
+            <td>改善が「主観」ではなく指標で議論できる</td>
+            <td>Capture成功率 + 経路効率（SPL類似） + 安全違反率 + ループ率</td>
+            <td>Embodied eval [R10]</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </section>
+
+  <section class="sheet">
+    <section class="panel">
+      <h2>5. Recommended Improvements (Prioritized)</h2>
+      <p class="muted small">
+        重要: 「プログラムで直接ターゲットを決める」方向は避け、LLMが判断するための <b>情報設計</b> と <b>行動インターフェース</b> を整える。
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Proposal</th>
+            <th>Why (failure mode it targets)</th>
+            <th>Implementation sketch</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>P0</b></td>
+            <td><b>Action abstraction: “skill selection” output</b></td>
+            <td>
+              JSON/連続制御の揺れで壁へ突っ込む、あるいは小刻み前後で停滞しやすい。<br/>
+              まず行動空間を整理すると、LLMの判断が安定する。
+            </td>
+            <td>
+              LLM出力に <span class="mono">skill</span> フィールドを追加（例: <span class="mono">APPROACH_TARGET</span>, <span class="mono">SCAN_SECTOR</span>, <span class="mono">BACKOFF_AND_TURN</span>, <span class="mono">MOVE_TO_FRONTIER</span>）。<br/>
+              実行器が duration/steer/throttle の波形を生成。LLMはスキルとパラメータに集中。
+            </td>
+            <td>SayCan [R1], Voyager [R2]</td>
+          </tr>
+          <tr>
+            <td><b>P0</b></td>
+            <td><b>Reflection slot + outcome summary</b></td>
+            <td>
+              壁方向へ向かうのは「直前の意思決定が失敗した」ことをLLMが学べていない可能性。<br/>
+              1周期前の結果を短い要約で与えると再発が減りやすい。
+            </td>
+            <td>
+              drive-logに「<span class="mono">outcome</span>」を追加: 目標距離の増減、最小障害物距離、loopRate変化、ガード介入有無。<br/>
+              次プロンプトへ 2-3行で注入し、<span class="mono">reflection</span> をJSONで返させて保存。
+            </td>
+            <td>ReAct [R3], Reflexion [R4], Inner Monologue [R5]</td>
+          </tr>
+          <tr>
+            <td><b>P1</b></td>
+            <td><b>Local map patch (5x5) with quantization</b></td>
+            <td>
+              現状はTop-K候補中心で、周辺の「壁の面」や「袋小路」を表現しきれない可能性。<br/>
+              局所パッチを量子化して渡すと、方向判断の誤りが減る。
+            </td>
+            <td>
+              currentCellを中心に 5x5 の risk/open/obstacle を 3段階程度に量子化（例: LOW/MID/HIGH）。<br/>
+              文字列行列として短く提示（トークン節約）。
+            </td>
+            <td>Map-as-tool系 [R6][R7]</td>
+          </tr>
+          <tr>
+            <td><b>P1</b></td>
+            <td><b>Frontier definition upgrade (classic)</b></td>
+            <td>
+              “重みが低い方へ” だけだと、境界外方向や未探索の袋小路に引き寄せられやすい。<br/>
+              Frontier（既知freeと未知の境界）を強化すると無駄探索が減る。
+            </td>
+            <td>
+              openHits/obstacleHits を用いてセルを {FREE / OCCUPIED / UNKNOWN} に分類し、FREEに隣接するUNKNOWNをfrontier候補へ。<br/>
+              その候補リストを LLM へ渡し、選択はLLMに任せる。
+            </td>
+            <td>Frontier exploration [R11]</td>
+          </tr>
+          <tr>
+            <td><b>P2</b></td>
+            <td><b>Embodied metrics: Capture-SPL</b></td>
+            <td>
+              「速度」ではなく「到達ルートの最適化」を見たい。<br/>
+              SPL系は “最短経路にどれだけ近いか” を測れるため、目的に合う。
+            </td>
+            <td>
+              1エピソードで、成功時のみ SPL = shortestPath / pathLength を計算（shortestは近似でも可）。<br/>
+              Capture成功率・衝突率・loopRateと一緒にレポート化。
+            </td>
+            <td>Embodied eval [R10]</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="muted small" style="margin-top:10px;">
+        注: PaLM-E/RT-2は「視覚を含む」方向の将来拡張候補。現時点の8レイ＋数値系でも、上記P0/P1だけで改善余地が大きい。
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>6. Evaluation Plan (paper-grade)</h2>
+      <p class="muted small">
+        研究として通すためには「改善がどの失敗モードに効いたか」を切り分ける必要がある。以下は最小のA/B計画。
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Experiment</th>
+            <th>Change</th>
+            <th>Primary metrics</th>
+            <th>Expected effect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>AB-1</td>
+            <td>現状 vs P0 Skill selection</td>
+            <td>Captures/min, collision rate, parse-error rate</td>
+            <td>壁突進・小刻み前後の減少、JSON安定</td>
+          </tr>
+          <tr>
+            <td>AB-2</td>
+            <td>P0 only vs P0+Reflection (P0)</td>
+            <td>loopRate, same-cell revisit ratio, safety interventions</td>
+            <td>ループ再発の減少、復帰の早期化</td>
+          </tr>
+          <tr>
+            <td>AB-3</td>
+            <td>P0+Reflection vs +Local patch (P1)</td>
+            <td>wrong-way-to-wall events, no-go chosen rate</td>
+            <td>方向誤りの減少、探索の無駄減</td>
+          </tr>
+          <tr>
+            <td>AB-4</td>
+            <td>Frontier upgrade (P1)</td>
+            <td>Coverage efficiency, Capture-SPL (success only)</td>
+            <td>境界外へ吸われる傾向の低減</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout tight" style="margin-top:10px;">
+        <p><b>ログ要件（最低限）</b></p>
+        <ul>
+          <li>LLM: prompt / raw response / parse method / schema version</li>
+          <li>Decision: mode/sector/skill/params/confidence + outcome summary</li>
+          <li>Safety: guardApplied, guardReason, override ratio</li>
+          <li>Memory: currentCell(ix,iz), loopRate, sectorSafety, frontier top-k, (optional) local patch</li>
+        </ul>
+      </div>
+    </section>
+  </section>
+
+  <section class="sheet">
+    <section class="panel">
+      <h2>7. References</h2>
+      <p class="muted small">
+        主要参照先（リンク先は外部）。本文中の [R#] はここに対応。
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Work</th>
+            <th>Link</th>
+            <th>Why it matters here</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">R1</td>
+            <td>SayCan / PaLM-SayCan (Ahn et al., 2022)</td>
+            <td class="mono"><a href="https://say-can.github.io/" target="_blank" rel="noreferrer">say-can.github.io</a></td>
+            <td>LLMを「技能選択」に寄せ、実行可能性の評価を外部構造で支える</td>
+          </tr>
+          <tr>
+            <td class="mono">R2</td>
+            <td>Voyager (Wang et al., 2023)</td>
+            <td class="mono"><a href="https://voyager.minedojo.org/" target="_blank" rel="noreferrer">voyager.minedojo.org</a></td>
+            <td>自動カリキュラム＋スキルライブラリ＋反復プロンプトで探索効率を上げる</td>
+          </tr>
+          <tr>
+            <td class="mono">R3</td>
+            <td>ReAct (Yao et al., 2022)</td>
+            <td class="mono"><a href="https://arxiv.org/abs/2210.03629" target="_blank" rel="noreferrer">arXiv:2210.03629</a></td>
+            <td>推論と行動の交互ループ（観測を次の行動へ）</td>
+          </tr>
+          <tr>
+            <td class="mono">R4</td>
+            <td>Reflexion (Shinn et al., 2023)</td>
+            <td class="mono"><a href="https://arxiv.org/abs/2303.11366" target="_blank" rel="noreferrer">arXiv:2303.11366</a></td>
+            <td>失敗からの反省を “言語メモリ” として次に活かす</td>
+          </tr>
+          <tr>
+            <td class="mono">R5</td>
+            <td>Inner Monologue (Huang et al., 2022)</td>
+            <td class="mono"><a href="https://arxiv.org/abs/2207.05608" target="_blank" rel="noreferrer">arXiv:2207.05608</a></td>
+            <td>環境フィードバックを使った閉ループ計画の重要性</td>
+          </tr>
+          <tr>
+            <td class="mono">R6</td>
+            <td>Tag Map (Zhang et al., 2024)</td>
+            <td class="mono"><a href="https://openreview.net/forum?id=uBfw0GJnZH" target="_blank" rel="noreferrer">OpenReview</a></td>
+            <td>LLMが扱いやすい “テキスト地図” の設計思想</td>
+          </tr>
+          <tr>
+            <td class="mono">R7</td>
+            <td>VLMaps (Huang et al., 2023)</td>
+            <td class="mono"><a href="https://arxiv.org/abs/2210.05714" target="_blank" rel="noreferrer">arXiv:2210.05714</a></td>
+            <td>外部地図とクエリで探索/ナビを改善するアプローチ</td>
+          </tr>
+          <tr>
+            <td class="mono">R8</td>
+            <td>PaLM-E (Driess et al., 2023)</td>
+            <td class="mono"><a href="https://arxiv.org/abs/2303.03378" target="_blank" rel="noreferrer">arXiv:2303.03378</a></td>
+            <td>将来、視覚を統合する場合の参照例</td>
+          </tr>
+          <tr>
+            <td class="mono">R9</td>
+            <td>RT-2 (Zitkovich et al., 2023)</td>
+            <td class="mono"><a href="https://arxiv.org/abs/2307.15818" target="_blank" rel="noreferrer">arXiv:2307.15818</a></td>
+            <td>VLA（Vision-Language-Action）としての設計方向</td>
+          </tr>
+          <tr>
+            <td class="mono">R10</td>
+            <td>Embodied navigation evaluation / SPL (Anderson et al., 2018)</td>
+            <td class="mono"><a href="https://arxiv.org/abs/1807.06757" target="_blank" rel="noreferrer">arXiv:1807.06757</a></td>
+            <td>成功率だけでなく「経路効率」を測る標準的指標</td>
+          </tr>
+          <tr>
+            <td class="mono">R11</td>
+            <td>Frontier-based exploration (Yamauchi, 1997)</td>
+            <td class="mono"><a href="https://ieeexplore.ieee.org/document/613851" target="_blank" rel="noreferrer">IEEE Xplore</a></td>
+            <td>探索の無駄を減らす “frontier” の古典的定義</td>
+          </tr>
+          <tr>
+            <td class="mono">R12</td>
+            <td>Survey: LLMs + intelligent robots (Rahman et al., 2024)</td>
+            <td class="mono"><a href="https://link.springer.com/article/10.1007/s10462-024-10888-6" target="_blank" rel="noreferrer">Springer</a></td>
+            <td>設計空間（役割分担/安全/メモリ/評価）の俯瞰整理</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small muted">
+        Note: 本レポートは “関連研究の要点→本プロジェクトへの適用” を目的に要約している。詳細は各原典を参照。
+      </p>
+    </section>
+  </section>
+</body>
+</html>
+

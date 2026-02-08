@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemma 3 AutoPilot Research Report (Paper-grade) - 2026-02-07</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --paper: #ffffff;
+      --ink: #111827;
+      --muted: #4b5563;
+      --line: #9ca3af;
+      --accent: #1d4ed8;
+      --ok: #166534;
+      --warn: #b45309;
+      --bad: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      line-height: 1.62;
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 8mm auto;
+      padding: 12mm;
+      background: var(--paper);
+      border: 1px solid #d1d5db;
+      box-shadow: 0 2mm 6mm rgba(0,0,0,0.12);
+    }
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: none;
+    }
+    h1, h2, h3, h4 { margin: 0 0 10px; }
+    h1 { font-size: 24px; color: #1e3a8a; letter-spacing: 0.2px; }
+    h2 { font-size: 18px; color: #1d4ed8; margin-top: 6px; }
+    h3 { font-size: 15px; color: #1d4ed8; }
+    h4 { font-size: 14px; color: #1f2937; }
+    p, li { color: var(--ink); }
+    .muted { color: var(--muted); }
+    .mono { font-family: Consolas, "Courier New", monospace; font-size: 12px; }
+    code {
+      background: transparent;
+      color: #1e3a8a;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 0 4px;
+    }
+    .kpi-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+    .kpi {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      border-radius: 4px;
+      padding: 8px;
+    }
+    .kpi .v {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .kpi .k { color: var(--muted); font-size: 12px; }
+    .bad { color: var(--bad); }
+    .warn { color: var(--warn); }
+    .ok { color: var(--ok); }
+    .two-col {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+    }
+    .three-col {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+    .figure {
+      border: 1px dashed var(--line);
+      border-radius: 4px;
+      padding: 10px;
+      background: #ffffff;
+      overflow: auto;
+    }
+    .figure svg {
+      background: #ffffff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 7px 8px;
+      vertical-align: top;
+    }
+    th {
+      background: #ffffff;
+      color: #1f2937;
+      text-align: left;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #ffffff;
+      color: #1f2937;
+      font-size: 11px;
+      margin-right: 6px;
+      margin-bottom: 4px;
+    }
+    .eq {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      overflow: auto;
+    }
+    .small { font-size: 12px; }
+    @media (max-width: 980px) {
+      .page {
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 10px;
+        box-shadow: none;
+      }
+      .two-col, .three-col { grid-template-columns: 1fr; }
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm;
+    }
+
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: var(--ink) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .page {
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      .panel,
+      .kpi,
+      .figure,
+      th,
+      td,
+      .eq,
+      .tag {
+        background: #ffffff !important;
+        color: inherit !important;
+        box-shadow: none !important;
+      }
+      .panel,
+      .kpi,
+      .figure,
+      th,
+      td,
+      .eq,
+      .tag {
+        border-color: #777777 !important;
+      }
+      .muted,
+      .small,
+      .kpi .k,
+      .mono {
+        color: var(--muted) !important;
+      }
+      .panel {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 6mm;
+      }
+      .figure svg text {
+        fill: #1f2937 !important;
+      }
+      .figure svg line {
+        stroke: #6b7280 !important;
+      }
+      table {
+        break-inside: auto;
+      }
+      tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .badge,
+      .tag {
+        border-width: 1px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="panel">
+      <h1>Gemma 3 Autonomous Target Capture: Engineering Research Report (Paper-grade)</h1>
+      <p class="muted">
+        Version: 2026-02-07 / Scope: LLM-driven vehicle controller with exploration-memory map and safety guard<br/>
+        Primary dataset: <code>session_2026-02-07T05-24-11-542Z</code>
+      </p>
+      <div>
+        <span class="tag">LLM as primary planner</span>
+        <span class="tag">RAG-like memory context</span>
+        <span class="tag">8-ray sensor fusion</span>
+        <span class="tag">Safety guard + mode hysteresis</span>
+        <span class="tag">Telemetry-first analysis</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Abstract</h2>
+      <p>
+        本研究は「LLMを主役とした自律走行」で青ターゲットへの到達・接触を実現するため、
+        センサ群、探索重みマップ、LLM戦略モード、そして安全ガードを統合した実装の検証を行った。
+        最新セッション（331.1s, 6620 samples）では、<b>Memory No-Go 平均 20.39%</b> と
+        危険セル学習は機能した一方、<b>Captures/Min 0.181</b>、<b>Safety Risk 33.63%</b>、
+        <b>Avg AI Latency 4798.9ms</b> が主要ボトルネックとして観測された。
+        追加改修として、壁ヒット境界クランプ、近接危険時ガード強化、戦略スイッチのヒステリシス制御を導入した。
+      </p>
+      <p>
+        結果として、no-go セルを直接選択する失敗は 0% に抑制されたが、探索偏重と高遅延のため、
+        目標捕捉効率は依然として研究課題として残る。本稿は実装の再現手順、定量結果、妥当性脅威、
+        次フェーズ仮説を明示し、継続実験の基盤を提供する。
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>1. Research Questions</h2>
+      <ol>
+        <li>RQ1: ヒートマップ由来の記憶情報は、壁回避と探索効率に実効的か。</li>
+        <li>RQ2: LLM戦略モード切替は、局所危険下で安定して制御に反映されるか。</li>
+        <li>RQ3: 高遅延環境において、停止待機・安全ガードが性能劣化をどこまで抑えられるか。</li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2>2. System and Method</h2>
+      <div class="two-col">
+        <div class="figure">
+          <h3>2.1 End-to-end Architecture</h3>
+          <svg width="100%" viewBox="0 0 980 300" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 z" fill="#93c5fd"/>
+              </marker>
+            </defs>
+            <rect x="20" y="34" width="180" height="64" rx="8" fill="none" stroke="#4f77a8"/>
+            <text x="110" y="62" text-anchor="middle" fill="#1f2937" font-size="14">Vehicle + 8-ray Sensors</text>
+            <text x="110" y="79" text-anchor="middle" fill="#374151" font-size="12">front / left / right / back</text>
+
+            <rect x="250" y="34" width="220" height="64" rx="8" fill="none" stroke="#4f77a8"/>
+            <text x="360" y="60" text-anchor="middle" fill="#1f2937" font-size="14">Exploration Memory</text>
+            <text x="360" y="77" text-anchor="middle" fill="#374151" font-size="12">riskEMA, openHits, obstacleHits</text>
+
+            <rect x="520" y="34" width="200" height="64" rx="8" fill="none" stroke="#5c88ba"/>
+            <text x="620" y="60" text-anchor="middle" fill="#1f2937" font-size="14">LLM Planner</text>
+            <text x="620" y="77" text-anchor="middle" fill="#374151" font-size="12">mode + sector + control</text>
+
+            <rect x="760" y="34" width="200" height="64" rx="8" fill="none" stroke="#a04f77"/>
+            <text x="860" y="60" text-anchor="middle" fill="#1f2937" font-size="14">Safety Guard</text>
+            <text x="860" y="77" text-anchor="middle" fill="#374151" font-size="12">sensorBlock + memoryBlock</text>
+
+            <rect x="250" y="190" width="220" height="64" rx="8" fill="none" stroke="#4c8f74"/>
+            <text x="360" y="228" text-anchor="middle" fill="#1f2937" font-size="14">Control Apply</text>
+
+            <rect x="520" y="190" width="200" height="64" rx="8" fill="none" stroke="#4c8f74"/>
+            <text x="620" y="228" text-anchor="middle" fill="#1f2937" font-size="14">Telemetry + Drive Log</text>
+
+            <rect x="760" y="190" width="200" height="64" rx="8" fill="none" stroke="#4c8f74"/>
+            <text x="860" y="228" text-anchor="middle" fill="#1f2937" font-size="14">UI + HTML Reports</text>
+
+            <line x1="200" y1="66" x2="250" y2="66" stroke="#93c5fd" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="470" y1="66" x2="520" y2="66" stroke="#93c5fd" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="720" y1="66" x2="760" y2="66" stroke="#93c5fd" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="860" y1="98" x2="860" y2="190" stroke="#93c5fd" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="760" y1="222" x2="720" y2="222" stroke="#93c5fd" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="520" y1="222" x2="470" y2="222" stroke="#93c5fd" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="360" y1="190" x2="360" y2="98" stroke="#93c5fd" stroke-width="2" marker-end="url(#arr)"/>
+          </svg>
+        </div>
+        <div>
+          <h3>2.2 Memory Representation and Resolution</h3>
+          <ul>
+            <li>Cell size: <b>2.0m</b> (<code>createExplorationMemory</code>)</li>
+            <li>Context radius: <b>2 cells</b> (5x5 around vehicle, 24 candidates)</li>
+            <li>LLM input is Top-K compressed, not full raster:
+              frontier(3), risky(2), topCandidates(3), topSafeCandidates(3), sectorSafety(4), currentCell.</li>
+          </ul>
+          <h4>Scoring Function (implemented)</h4>
+          <div class="eq">
+            score = 0.95*novelty + 0.40*openBias - 0.95*risk - 0.09*distance<br/>
+            score -= boundsPenalty + unknownPenalty<br/>
+            if barrierBlocked: score -= 0.90<br/>
+            if obstacleDominant: score -= 0.95<br/>
+            if obstacleHits>=1 and risk>=0.62: score -= 0.55
+          </div>
+          <h4>Recent Safety Extensions</h4>
+          <div class="eq">
+            - boundary clamp: hit point outside bounds -> clamp to border cell and record obstacle hit<br/>
+            - front_tight_clamp: reduce forward throttle and bias steering when front arc is tight<br/>
+            - mode hysteresis: cooldown + dwell + vote for mode switching
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>3. Experimental Data and Protocol</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>File</th>
+            <th>Size</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Telemetry (time series)</td>
+            <td class="mono">session_2026-02-07T05-24-11-542Z_telemetry_2026-02-07T05-27-52-304Z_manual.json</td>
+            <td>13,016,650 bytes</td>
+            <td>state, controls, strategy tags, memory diagnostics</td>
+          </tr>
+          <tr>
+            <td>Drive log (decision level)</td>
+            <td class="mono">session_2026-02-07T05-24-11-542Z_drive_gemma_drive_log_2026-02-07T05-26-59-776Z_auto_stop.json</td>
+            <td>1,734,188 bytes</td>
+            <td>LLM prompt/raw, parse method, safety guard, selected controls</td>
+          </tr>
+          <tr>
+            <td>Generated report</td>
+            <td class="mono">session_2026-02-07T05-24-11-542Z_report_driver_limit_report_2026-02-07T05-29-08-186Z.html</td>
+            <td>-</td>
+            <td>KPI summary and analyst narrative</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>4. Results (Primary Session)</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="v bad">0.181</div><div class="k">Captures / Min</div></div>
+        <div class="kpi"><div class="v warn">0.408</div><div class="k">Intentionality</div></div>
+        <div class="kpi"><div class="v bad">33.63%</div><div class="k">Safety Risk (&lt;2.5m)</div></div>
+        <div class="kpi"><div class="v">0.48%</div><div class="k">Stuck Ratio</div></div>
+        <div class="kpi"><div class="v bad">4798.9ms</div><div class="k">Avg AI Latency</div></div>
+        <div class="kpi"><div class="v">43.07%</div><div class="k">Strategy Switch Rate</div></div>
+        <div class="kpi"><div class="v">67.89%</div><div class="k">Mode Share: EXPLORE</div></div>
+        <div class="kpi"><div class="v">24.62%</div><div class="k">Mode Share: ESCAPE</div></div>
+        <div class="kpi"><div class="v">6.01%</div><div class="k">Mode Share: LOCK</div></div>
+        <div class="kpi"><div class="v">20.39%</div><div class="k">Memory No-Go (avg)</div></div>
+        <div class="kpi"><div class="v ok">0.00%</div><div class="k">Selected No-Go</div></div>
+        <div class="kpi"><div class="v">1.305</div><div class="k">Selected Weight (avg)</div></div>
+      </div>
+
+      <div class="two-col" style="margin-top:12px;">
+        <div class="figure">
+          <h3>4.1 Latency Quantiles (ms)</h3>
+          <svg width="100%" viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg">
+            <text x="20" y="24" fill="#1f2937" font-size="13">Latency distribution</text>
+            <line x1="60" y1="210" x2="480" y2="210" stroke="#6b7280"/>
+            <line x1="60" y1="40" x2="60" y2="210" stroke="#6b7280"/>
+            <text x="40" y="214" fill="#4b5563" font-size="11">0</text>
+            <text x="30" y="174" fill="#4b5563" font-size="11">1250</text>
+            <text x="30" y="134" fill="#4b5563" font-size="11">2500</text>
+            <text x="30" y="94" fill="#4b5563" font-size="11">3750</text>
+            <text x="30" y="54" fill="#4b5563" font-size="11">5000</text>
+
+            <rect x="100" y="46.9" width="50" height="163.1" fill="#3b82f6"/>
+            <rect x="190" y="46.1" width="50" height="163.9" fill="#60a5fa"/>
+            <rect x="280" y="43.6" width="50" height="166.4" fill="#93c5fd"/>
+            <rect x="370" y="40.8" width="50" height="169.2" fill="#bfdbfe"/>
+            <text x="125" y="226" text-anchor="middle" fill="#1f2937" font-size="11">P50</text>
+            <text x="215" y="226" text-anchor="middle" fill="#1f2937" font-size="11">P90</text>
+            <text x="305" y="226" text-anchor="middle" fill="#1f2937" font-size="11">P95</text>
+            <text x="395" y="226" text-anchor="middle" fill="#1f2937" font-size="11">P99</text>
+            <text x="125" y="41" text-anchor="middle" fill="#1f2937" font-size="11">4796</text>
+            <text x="215" y="40" text-anchor="middle" fill="#1f2937" font-size="11">4862</text>
+            <text x="305" y="37" text-anchor="middle" fill="#1f2937" font-size="11">4910</text>
+            <text x="395" y="34" text-anchor="middle" fill="#1f2937" font-size="11">4991</text>
+          </svg>
+        </div>
+        <div class="figure">
+          <h3>4.2 Strategy Mode Mix</h3>
+          <svg width="100%" viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg">
+            <text x="20" y="24" fill="#1f2937" font-size="13">Mode occupancy (%)</text>
+            <line x1="60" y1="210" x2="480" y2="210" stroke="#6b7280"/>
+            <line x1="60" y1="20" x2="60" y2="210" stroke="#6b7280"/>
+            <rect x="105" y="198.6" width="70" height="11.4" fill="#22c55e"/>
+            <rect x="220" y="81.0" width="70" height="129.0" fill="#38bdf8"/>
+            <rect x="335" y="163.2" width="70" height="46.8" fill="#f97316"/>
+            <text x="140" y="226" text-anchor="middle" fill="#1f2937" font-size="11">LOCK</text>
+            <text x="255" y="226" text-anchor="middle" fill="#1f2937" font-size="11">EXPLORE</text>
+            <text x="370" y="226" text-anchor="middle" fill="#1f2937" font-size="11">ESCAPE</text>
+            <text x="140" y="194" text-anchor="middle" fill="#1f2937" font-size="11">6.01</text>
+            <text x="255" y="76" text-anchor="middle" fill="#1f2937" font-size="11">67.89</text>
+            <text x="370" y="158" text-anchor="middle" fill="#1f2937" font-size="11">24.62</text>
+          </svg>
+        </div>
+      </div>
+
+      <h3 style="margin-top:12px;">4.3 Derived Diagnostics</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Value</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>MinObstacleDist p10 / p25 / p50</td><td>2.16 / 2.34 / 3.83 m</td><td>下位四分位が2.5m未満で、危険近接が継続的に発生。</td></tr>
+          <tr><td>MemoryLoopRate avg / p90 / max</td><td>0.612 / 1.000 / 1.000</td><td>再訪偏重。探索の新規性不足が示唆される。</td></tr>
+          <tr><td>Unique visited 2m cells</td><td>54</td><td>セッション長に対し空間カバレッジが限定的。</td></tr>
+          <tr><td>Edge proximity ratio</td><td>19.15%</td><td>外周近傍の滞在が高く、壁際行動の影響が残る。</td></tr>
+          <tr><td>Drive-log parse method</td><td>loose_recovery 61 / strict 2</td><td>LLM出力のJSON整形依存が非常に高い。</td></tr>
+          <tr><td>Decision interval (drive log)</td><td>avg 5.22s (p50 5.19s)</td><td>推論周期が長く、局所回避には不利。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>5. Multi-run Trend (Recent 8 Reports)</h2>
+      <p class="muted small">
+        Source files: latest report + <code>driver_limit_report_*.html</code> recent 7 files.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Report</th>
+            <th>Captures/Min</th>
+            <th>Safety Risk</th>
+            <th>Avg AI Latency</th>
+            <th>Switch Rate</th>
+            <th>Memory No-Go(avg)</th>
+            <th>Explore Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">session_..._05-29-08-186Z</td><td>0.18</td><td>33.6%</td><td>4728ms</td><td>43.7%</td><td>20.7%</td><td>68.9%</td>
+          </tr>
+          <tr>
+            <td class="mono">driver_limit_report_1770437159825</td><td>0.00</td><td>30.5%</td><td>5203ms</td><td>50.1%</td><td>9.4%</td><td>71.8%</td>
+          </tr>
+          <tr>
+            <td class="mono">driver_limit_report_1770436570876</td><td>0.00</td><td>30.7%</td><td>5189ms</td><td>43.2%</td><td>11.6%</td><td>73.7%</td>
+          </tr>
+          <tr>
+            <td class="mono">driver_limit_report_1770435646232</td><td>0.00</td><td>39.5%</td><td>4462ms</td><td>49.6%</td><td>N/A</td><td>74.6%</td>
+          </tr>
+          <tr>
+            <td class="mono">driver_limit_report_1770435326654</td><td>0.16</td><td>33.2%</td><td>4598ms</td><td>49.0%</td><td>N/A</td><td>70.1%</td>
+          </tr>
+          <tr>
+            <td class="mono">driver_limit_report_1770434634016</td><td>0.00</td><td>32.0%</td><td>4539ms</td><td>55.1%</td><td>N/A</td><td>71.9%</td>
+          </tr>
+          <tr>
+            <td class="mono">driver_limit_report_1770434072447</td><td>0.26</td><td>28.2%</td><td>4507ms</td><td>47.2%</td><td>N/A</td><td>75.9%</td>
+          </tr>
+          <tr>
+            <td class="mono">driver_limit_report_1770433510676</td><td>0.00</td><td>34.1%</td><td>4506ms</td><td>44.6%</td><td>N/A</td><td>74.2%</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small muted">
+        Observation: 最新改修で Safety Risk は最悪値から改善したが、依然 33%台。Explore share は一貫して高く、
+        Capture efficiency の支配因子として残る。
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>6. Intervention Summary and Technical Rationale</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Intervention</th>
+            <th>Rationale</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Direction flip cooldown</td>
+            <td>短周期の前後反転を抑え、微振動行動を低減</td>
+            <td class="mono">src/App.jsx:18, 850</td>
+          </tr>
+          <tr>
+            <td>Inference-time vehicle hold</td>
+            <td>思考中の惰性移動を遮断し、判断時刻と実行時刻の状態差を縮小</td>
+            <td class="mono">src/App.jsx (AI loop, applyControls 0)</td>
+          </tr>
+          <tr>
+            <td>Boundary-hit clamp</td>
+            <td>外周壁ヒットが境界外判定で欠落する問題を修正</td>
+            <td class="mono">src/services/explorationMemory.js:59, 314</td>
+          </tr>
+          <tr>
+            <td>Aggressive obstacle no-go criteria</td>
+            <td>単発壁ヒットでも危険セル化し、回避学習を早期反映</td>
+            <td class="mono">src/services/explorationMemory.js:129, 170, 201</td>
+          </tr>
+          <tr>
+            <td>Safety guard hardening</td>
+            <td>前方狭隘時の前進をさらに制限し、escape steeringへ誘導</td>
+            <td class="mono">src/services/ollamaService.js:161-242</td>
+          </tr>
+          <tr>
+            <td>Mode hysteresis</td>
+            <td>SWITCH乱発抑制。cooldown+dwell+vote で戦略安定化</td>
+            <td class="mono">src/services/ollamaService.js:5, 543, 802</td>
+          </tr>
+          <tr>
+            <td>Panel visibility and priority HUD</td>
+            <td>運転監視の認知負荷低減。研究観測性を向上</td>
+            <td class="mono">src/App.jsx:113, 1081, 1185</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>7. Threats to Validity</h2>
+      <ul>
+        <li><b>Single-condition bias:</b> 同一環境・同一地形への依存。一般化は未検証。</li>
+        <li><b>Latency confound:</b> 高遅延が戦略品質と制御品質を同時に悪化させ、要因分離が難しい。</li>
+        <li><b>Parser dependence:</b> drive-log上、<code>loose_recovery</code> 比率が高く、純粋LLM出力の信頼性評価にバイアス。</li>
+        <li><b>Non-stationary policy:</b> 実装を頻繁改修中で、厳密なA/B統制が弱い。</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>8. Conclusion</h2>
+      <p>
+        本時点で、探索メモリは機能しており no-go 選択失敗を抑えている。しかし、目標捕捉性能は未だ低く、
+        実運用観点では <b>高遅延</b> と <b>探索偏重</b> が支配的制約である。
+        したがって次段は、(i) 推論周期短縮、(ii) LOCK優先の戦略重み再設計、(iii) 近接危険時の反射制御強化、
+        を最優先で進めるべきである。
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>8.1 Latest Update (2026-02-07 20:39 JST)</h2>
+      <p class="small muted">
+        This addendum reflects the latest run logs generated after the original paper-grade report was written.
+        Source files:
+        <code>thelatestlogdata/session_2026-02-07T11-36-42-103Z_drive_gemma_drive_log_2026-02-07T11-39-00-115Z_auto_stop.json</code>
+        and
+        <code>thelatestlogdata/OLD/session_2026-02-07T11-19-41-795Z_drive_gemma_drive_log_2026-02-07T11-25-46-766Z_auto_stop.json</code>.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Previous Run (12b phase)</th>
+            <th>Latest Run (4b phase)</th>
+            <th>Delta / Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Decisions</td><td>27</td><td>52</td><td>More control cycles executed</td></tr>
+          <tr><td>Avg AI Latency</td><td>12453.4 ms</td><td>5628.9 ms</td><td>Improved (about 55% faster)</td></tr>
+          <tr><td>P95 AI Latency</td><td>14733 ms</td><td>8816 ms</td><td>Improved tail latency</td></tr>
+          <tr><td>Distance (start -> end)</td><td>25.00 m -> 24.13 m</td><td>25.00 m -> 17.09 m</td><td>Approach improved</td></tr>
+          <tr><td>Minimum Distance to Target</td><td>18.61 m</td><td>1.65 m</td><td>Near-capture behavior observed</td></tr>
+          <tr><td>Target-hit Decisions</td><td>0</td><td>7</td><td>Target signal acquisition improved</td></tr>
+          <tr><td>Collision Max</td><td>2</td><td>12</td><td>Safety regressed</td></tr>
+          <tr><td>Same-Wall Repeat</td><td>1</td><td>10</td><td>Looping near obstacles increased</td></tr>
+          <tr><td>Reason-blocked Decisions</td><td>13</td><td>27</td><td>More actions were blocked</td></tr>
+          <tr><td>Reason Validation Pass Rate (last)</td><td>0.536</td><td>0.534</td><td>Almost unchanged</td></tr>
+          <tr><td>Missing Model Reason Steps</td><td>8</td><td>22</td><td>Main blocker in 4b run</td></tr>
+        </tbody>
+      </table>
+      <h3>Current Interpretation</h3>
+      <ul>
+        <li>Switching to 4b clearly improves inference speed and target approach behavior.</li>
+        <li>Safety degrades at the same time (collisions and same-wall repeats increase).</li>
+        <li>The strict reason validator still blocks many steps because model-side reason output is often missing.</li>
+        <li>The immediate priority is not AB automation yet; first stabilize reason handling so 4b can execute safe actions consistently.</li>
+      </ul>
+      <h3>Immediate Next Actions</h3>
+      <ol>
+        <li>Relax only <code>REASON_NOT_FROM_MODEL</code> under safe-distance constraints and keep sign/risk checks strict.</li>
+        <li>Keep 4b as default while logging reason-source ratios and blocked-step causes each run.</li>
+        <li>After safety recovers, start AB automation with fixed condition matrix (AB-1 to AB-4).</li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2>8.2 AB Automation Update (2026-02-07 21:50 JST)</h2>
+      <p class="small muted">
+        Automated matrix run summary source:
+        <code>thelatestlogdata/session_2026-02-07T12-48-52-524Z_experiment_automation_summary_2026-02-07T12-50-30-821Z.json</code>
+        (8 runs total, 4 conditions x 2 repeats, 240s per run).
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Condition</th>
+            <th>Model / Sensor</th>
+            <th>Avg Progress (start-end, m)</th>
+            <th>Avg Latency (ms)</th>
+            <th>Avg Collisions</th>
+            <th>Avg Same-Wall</th>
+            <th>Best target hit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>AB-1</td><td>4b / adaptive 7-14m</td><td>+7.094</td><td>5160.6</td><td>5.0</td><td>2.0</td><td>1</td></tr>
+          <tr><td>AB-2</td><td>12b / adaptive 7-14m</td><td>-4.463</td><td>13218.5</td><td>3.0</td><td>1.5</td><td>0</td></tr>
+          <tr><td>AB-3</td><td>4b / fixed 10m</td><td>-0.991</td><td>5393.9</td><td>8.5</td><td>5.0</td><td>0</td></tr>
+          <tr><td>AB-4</td><td>4b / adaptive 6-16m</td><td>-1.615</td><td>5150.3</td><td>5.5</td><td>3.5</td><td>0</td></tr>
+        </tbody>
+      </table>
+      <h3>Interpretation</h3>
+      <ul>
+        <li><b>AB-1</b> is the current best baseline: only condition with positive average progress and target hit signal.</li>
+        <li><b>AB-2 (12b)</b> remains too slow for this control loop; decision count is much lower despite same runtime budget.</li>
+        <li><b>AB-3</b> shows the worst safety trend (collision and same-wall repeat), indicating fixed-range sensing harms stability in this map.</li>
+        <li><b>AB-4</b> keeps low latency but still regresses approach distance, so wider adaptive range alone does not solve strategy quality.</li>
+      </ul>
+      <h3>Validity Note and Fix Applied</h3>
+      <ul>
+        <li>During this AB batch, run starts were not fully normalized; start distance drifted between runs and mixed with condition effect.</li>
+        <li>After this analysis, the runner was patched so each run now force-resets both vehicle and target to fixed initial states before preflight.</li>
+        <li>Implementation references: <code>src/App.jsx</code> (run-start reset + sensor refresh gate), <code>src/components/GameScene.jsx</code> (car remount key), <code>src/components/Car.jsx</code> (spawn pose props).</li>
+      </ul>
+      <h3>Next Experimental Step</h3>
+      <ol>
+        <li>Re-run AB-1 vs AB-4 with normalized starts (at least 4 repeats each).</li>
+        <li>Use AB-1 as temporary production baseline while refining collision suppression for repeat-wall cases.</li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2>Appendix A. Reproducibility</h2>
+      <h3>A.1 Data extraction commands</h3>
+      <div class="eq">
+        node -e "/* telemetry + drive-log aggregate metrics */"<br/>
+        node -e "/* parse latest report stat boxes for trend table */"
+      </div>
+      <h3>A.2 Main code references</h3>
+      <p class="mono">
+        src/App.jsx:18,26,113,463,507,700,850,1081,1185,1534<br/>
+        src/services/explorationMemory.js:59,129,170,201,314,323<br/>
+        src/services/ollamaService.js:5,161,184,242,543,579,802,909
+      </p>
+      <p class="small muted">
+        This document supersedes: <code>docs/llm_autodrive_research_report_2026-02-07.html</code>
+      </p>
+    </section>
+  </main>
+</body>
+</html>

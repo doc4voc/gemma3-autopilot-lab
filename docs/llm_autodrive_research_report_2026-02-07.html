@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemma 3 AutoPilot 研究実装レポート (2026-02-07)</title>
+  <style>
+    :root {
+      --bg: #0c1119;
+      --panel: #111a26;
+      --panel-2: #172436;
+      --text: #d8e2f1;
+      --muted: #9bb0c9;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --line: #29405f;
+      --accent: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #0a0f16 0%, #0e1522 100%);
+      color: var(--text);
+      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      line-height: 1.6;
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+    .hero, .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 { font-size: 28px; color: #7dd3fc; }
+    h2 { font-size: 20px; color: #a5f3fc; margin-top: 10px; }
+    h3 { font-size: 16px; color: #bae6fd; }
+    p, li { color: var(--text); }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+    .stats {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid #2b4667;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .stat .v {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .stat .k {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .v.bad { color: var(--bad); }
+    .v.warn { color: var(--warn); }
+    .v.ok { color: var(--ok); }
+    .two {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1.1fr 0.9fr;
+    }
+    .figure {
+      background: #0b1522;
+      border: 1px dashed #2c4a6a;
+      border-radius: 10px;
+      padding: 10px;
+      overflow: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #2a3f5a;
+      padding: 8px;
+      vertical-align: top;
+    }
+    th { background: #17283a; color: #bfe9ff; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #33557a;
+      background: #10233a;
+      color: #cde8ff;
+    }
+    .mono { font-family: Consolas, "Courier New", monospace; font-size: 12px; }
+    code {
+      background: #0b1726;
+      border: 1px solid #27425f;
+      border-radius: 6px;
+      padding: 1px 6px;
+      color: #bfdbfe;
+    }
+    @media (max-width: 980px) {
+      .two { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Gemma 3 AutoPilot 研究実装レポート</h1>
+      <p class="muted">作成日: 2026-02-07 / 対象セッション: <code>session_2026-02-07T05-24-11-542Z</code></p>
+      <p>
+        本レポートは、LLM主導の自律走行プロジェクトに対して行った改修の全体像、
+        現在の性能、既知の課題、次フェーズ方針をまとめた中間報告です。
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>1. 研究目標 (再定義)</h2>
+      <ul>
+        <li>LLMを主役として、青ポールの捕捉・接触を安定達成する。</li>
+        <li>壁・障害物との危険接近を抑え、デッドロックを減らす。</li>
+        <li>探索メモリ(重みマップ)を使い、無駄な反復探索を減らす。</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>2. 最新KPIスナップショット</h2>
+      <p class="muted">参照: <code>session_2026-02-07T05-24-11-542Z_report_driver_limit_report_2026-02-07T05-29-08-186Z.html</code></p>
+      <div class="grid stats">
+        <div class="stat"><div class="v">1</div><div class="k">Target Captures</div></div>
+        <div class="stat"><div class="v bad">0.18</div><div class="k">Captures / Min</div></div>
+        <div class="stat"><div class="v warn">0.408</div><div class="k">Intentionality</div></div>
+        <div class="stat"><div class="v bad">15.4%</div><div class="k">Logic Accuracy</div></div>
+        <div class="stat"><div class="v bad">33.6%</div><div class="k">Safety Risk</div></div>
+        <div class="stat"><div class="v">0.5%</div><div class="k">Stuck Ratio</div></div>
+        <div class="stat"><div class="v bad">4728ms</div><div class="k">Avg AI Latency</div></div>
+        <div class="stat"><div class="v warn">43.7%</div><div class="k">Strategy Switch Rate</div></div>
+        <div class="stat"><div class="v">20.7%</div><div class="k">Memory No-Go (avg)</div></div>
+        <div class="stat"><div class="v ok">0.0%</div><div class="k">Selected No-Go</div></div>
+        <div class="stat"><div class="v">6.1%</div><div class="k">Mode Share LOCK</div></div>
+        <div class="stat"><div class="v">68.9%</div><div class="k">Mode Share EXPLORE</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. 実装アーキテクチャ</h2>
+      <div class="two">
+        <div class="figure">
+          <h3>3.1 全体フロー図</h3>
+          <svg width="100%" viewBox="0 0 980 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 z" fill="#7dd3fc"/>
+              </marker>
+            </defs>
+            <rect x="20" y="30" width="150" height="60" rx="8" fill="#17324c" stroke="#3f6b95"/>
+            <text x="95" y="66" text-anchor="middle" fill="#dbeafe" font-size="14">Car Sensors</text>
+
+            <rect x="220" y="30" width="170" height="60" rx="8" fill="#17324c" stroke="#3f6b95"/>
+            <text x="305" y="58" text-anchor="middle" fill="#dbeafe" font-size="14">Exploration Memory</text>
+            <text x="305" y="76" text-anchor="middle" fill="#93c5fd" font-size="12">risk/open/no-go</text>
+
+            <rect x="440" y="30" width="180" height="60" rx="8" fill="#1e3a5a" stroke="#4a7ca8"/>
+            <text x="530" y="58" text-anchor="middle" fill="#dbeafe" font-size="14">LLM Decision</text>
+            <text x="530" y="76" text-anchor="middle" fill="#93c5fd" font-size="12">mode + control</text>
+
+            <rect x="670" y="30" width="190" height="60" rx="8" fill="#3b1f32" stroke="#84507b"/>
+            <text x="765" y="58" text-anchor="middle" fill="#fbcfe8" font-size="14">Safety Guard</text>
+            <text x="765" y="76" text-anchor="middle" fill="#f9a8d4" font-size="12">sensor + memory block</text>
+
+            <rect x="220" y="165" width="170" height="60" rx="8" fill="#193a2b" stroke="#34745a"/>
+            <text x="305" y="201" text-anchor="middle" fill="#bbf7d0" font-size="14">Control Apply</text>
+
+            <rect x="440" y="165" width="180" height="60" rx="8" fill="#193a2b" stroke="#34745a"/>
+            <text x="530" y="201" text-anchor="middle" fill="#bbf7d0" font-size="14">Telemetry / Logs</text>
+
+            <rect x="670" y="165" width="190" height="60" rx="8" fill="#193a2b" stroke="#34745a"/>
+            <text x="765" y="201" text-anchor="middle" fill="#bbf7d0" font-size="14">HUD / Reports</text>
+
+            <line x1="170" y1="60" x2="220" y2="60" stroke="#7dd3fc" stroke-width="2" marker-end="url(#a)"/>
+            <line x1="390" y1="60" x2="440" y2="60" stroke="#7dd3fc" stroke-width="2" marker-end="url(#a)"/>
+            <line x1="620" y1="60" x2="670" y2="60" stroke="#7dd3fc" stroke-width="2" marker-end="url(#a)"/>
+            <line x1="765" y1="90" x2="765" y2="165" stroke="#7dd3fc" stroke-width="2" marker-end="url(#a)"/>
+            <line x1="670" y1="195" x2="620" y2="195" stroke="#7dd3fc" stroke-width="2" marker-end="url(#a)"/>
+            <line x1="440" y1="195" x2="390" y2="195" stroke="#7dd3fc" stroke-width="2" marker-end="url(#a)"/>
+            <line x1="305" y1="165" x2="305" y2="90" stroke="#7dd3fc" stroke-width="2" marker-end="url(#a)"/>
+          </svg>
+        </div>
+        <div class="figure">
+          <h3>3.2 ヒートマップ情報のLLM入力解像度</h3>
+          <svg width="100%" viewBox="0 0 430 260" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="200" height="200" fill="#0e1d2f" stroke="#3e5f84"/>
+            <g stroke="#284466" stroke-width="1">
+              <line x1="60" y1="20" x2="60" y2="220"/><line x1="100" y1="20" x2="100" y2="220"/>
+              <line x1="140" y1="20" x2="140" y2="220"/><line x1="180" y1="20" x2="180" y2="220"/>
+              <line x1="20" y1="60" x2="220" y2="60"/><line x1="20" y1="100" x2="220" y2="100"/>
+              <line x1="20" y1="140" x2="220" y2="140"/><line x1="20" y1="180" x2="220" y2="180"/>
+            </g>
+            <rect x="100" y="100" width="40" height="40" fill="#facc15" stroke="#ffffff" />
+            <text x="120" y="124" text-anchor="middle" fill="#111827" font-size="12" font-weight="700">SELF</text>
+            <text x="20" y="240" fill="#93c5fd" font-size="12">5x5候補 (= radiusCells 2)</text>
+            <text x="20" y="254" fill="#93c5fd" font-size="12">セルサイズ 2.0m、計24候補を評価</text>
+
+            <rect x="250" y="26" width="160" height="194" fill="#13243a" stroke="#3e5f84"/>
+            <text x="330" y="48" text-anchor="middle" fill="#bfdbfe" font-size="13" font-weight="700">LLMへ渡す圧縮情報</text>
+            <text x="262" y="74" fill="#dbeafe" font-size="12">- currentCell</text>
+            <text x="262" y="92" fill="#dbeafe" font-size="12">- preferredSector</text>
+            <text x="262" y="110" fill="#dbeafe" font-size="12">- frontier 上位3</text>
+            <text x="262" y="128" fill="#dbeafe" font-size="12">- risky 上位2</text>
+            <text x="262" y="146" fill="#dbeafe" font-size="12">- topCandidates 上位3</text>
+            <text x="262" y="164" fill="#dbeafe" font-size="12">- topSafeCandidates 上位3</text>
+            <text x="262" y="182" fill="#dbeafe" font-size="12">- sectorSafety (L/F/R/B)</text>
+            <text x="262" y="200" fill="#93c5fd" font-size="11">完全グリッドではなくTop-K要約</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. 主要改修サマリ</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>改修テーマ</th>
+            <th>狙い</th>
+            <th>反映ファイル</th>
+            <th>状態</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>AI応答待ち中の停止</td>
+            <td>推論中の慣性進行を防ぎ、判断と実行のズレを減らす</td>
+            <td class="mono">src/App.jsx</td>
+            <td><span class="badge">実装済</span></td>
+          </tr>
+          <tr>
+            <td>方向反転クールダウン</td>
+            <td>同一点で前後ガタつき(微振動)を抑制</td>
+            <td class="mono">src/App.jsx:18</td>
+            <td><span class="badge">実装済</span></td>
+          </tr>
+          <tr>
+            <td>ログ保存系の再設計</td>
+            <td>Drive/Telemetry/Meta/Reportの個別DLと一括保存</td>
+            <td class="mono">src/App.jsx:463, 475, 487, 507</td>
+            <td><span class="badge">実装済</span></td>
+          </tr>
+          <tr>
+            <td>UI可視性改善</td>
+            <td>優先情報バー追加、パネル表示切替、ログドック分離</td>
+            <td class="mono">src/App.jsx:1081, 113, 1534</td>
+            <td><span class="badge">実装済</span></td>
+          </tr>
+          <tr>
+            <td>壁ヒット学習強化</td>
+            <td>壁近傍セルを早くno-go化、境界外ヒットを捨てない</td>
+            <td class="mono">src/services/explorationMemory.js:59,129,314</td>
+            <td><span class="badge">実装済</span></td>
+          </tr>
+          <tr>
+            <td>近接危険時ガード強化</td>
+            <td>前方狭隘時に前進抑制、回避舵へ誘導</td>
+            <td class="mono">src/services/ollamaService.js:161,242</td>
+            <td><span class="badge">実装済</span></td>
+          </tr>
+          <tr>
+            <td>戦略スイッチ抑制 (ヒステリシス)</td>
+            <td>モード揺れと過剰切替を抑える</td>
+            <td class="mono">src/services/ollamaService.js:5,543,802</td>
+            <td><span class="badge">実装済</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>5. 壁反応問題の原因と対策</h2>
+      <div class="two">
+        <div>
+          <h3>5.1 原因</h3>
+          <ul>
+            <li>外周壁ヒット点が境界外判定で破棄され、該当セルに<code>obstacleHits</code>が積算されないケースがあった。</li>
+            <li>初期は no-go 判定閾値が高く、短時間接触で赤化しにくかった。</li>
+            <li>平均遅延が高く、危険局面で制御の追従が遅れる。</li>
+          </ul>
+        </div>
+        <div class="figure">
+          <h3>5.2 対策図</h3>
+          <svg width="100%" viewBox="0 0 470 220" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 z" fill="#93c5fd"/>
+              </marker>
+            </defs>
+            <rect x="20" y="30" width="180" height="70" rx="8" fill="#3a1a1a" stroke="#8d3b3b"/>
+            <text x="110" y="58" text-anchor="middle" fill="#fecaca" font-size="13">Before</text>
+            <text x="110" y="78" text-anchor="middle" fill="#fecaca" font-size="12">hit点が境界外 → 破棄</text>
+
+            <rect x="270" y="30" width="180" height="70" rx="8" fill="#163325" stroke="#3a7a5c"/>
+            <text x="360" y="58" text-anchor="middle" fill="#bbf7d0" font-size="13">After</text>
+            <text x="360" y="78" text-anchor="middle" fill="#bbf7d0" font-size="12">境界へクランプして記録</text>
+
+            <line x1="200" y1="65" x2="270" y2="65" stroke="#93c5fd" stroke-width="2" marker-end="url(#ar)"/>
+
+            <rect x="20" y="130" width="430" height="70" rx="8" fill="#102133" stroke="#355a7e"/>
+            <text x="235" y="154" text-anchor="middle" fill="#dbeafe" font-size="13">追加効果</text>
+            <text x="235" y="174" text-anchor="middle" fill="#bfdbfe" font-size="12">riskEMA引上げ + no-go閾値強化 + safety guard強化 + mode hysteresis</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>6. 現在の評価</h2>
+      <ul>
+        <li>メモリ学習自体は機能: <code>Memory No-Go(avg)=20.7%</code>、<code>Selected No-Go=0.0%</code>。</li>
+        <li>ただし走行性能は未達: 捕捉率、論理整合、接触追従が低い。</li>
+        <li>ボトルネックは、<b>高遅延</b>と<b>戦略切替頻度</b>の複合影響。</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>7. 次フェーズ実験計画</h2>
+      <ol>
+        <li><b>Latency短縮実験:</b> プロンプト圧縮、出力トークン上限調整、意思決定周期最適化。</li>
+        <li><b>Mode安定化評価:</b> ヒステリシス閾値 (<code>cooldown/dwell/votes</code>) のA/B比較。</li>
+        <li><b>近接安全チューニング:</b> <code>front_tight_clamp</code> の閾値を段階調整し、Safety Riskの低減幅を確認。</li>
+        <li><b>ターゲット優先度再調整:</b> LOCKモード比率を引き上げ、EXPLORE偏重を是正。</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>8. 参考実装 (主要箇所)</h2>
+      <p class="mono">
+        src/App.jsx:18,26,113,463,507,700,1081,1534<br/>
+        src/services/explorationMemory.js:59,129,170,314,323<br/>
+        src/services/ollamaService.js:5,161,184,242,543,802
+      </p>
+      <p class="muted">注: 行番号は本レポート作成時点のワークスペース基準。</p>
+    </section>
+  </div>
+</body>
+</html>
