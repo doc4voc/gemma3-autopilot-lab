@@ -56,3 +56,6 @@ ollama pull gemma3:12b
 
 研究・実験用のプロトタイプです。UI/ログ形式/意思決定プロンプト等は今後変わる可能性があります。
 
+## License
+
+MIT License（`LICENSE`）
