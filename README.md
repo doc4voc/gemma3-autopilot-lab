@@ -1,10 +1,14 @@
-# Gemma 3 AutoPilot Lab (GemmaCar / AutoDrive)
+﻿# Gemma 3 AutoPilot Lab (GemmaCar / AutoDrive)
 
 ブラウザ上の簡易 3D ドライビング環境（React + Vite + three.js）で、Ollama 経由の LLM（例: `gemma3:4b` / `gemma3:12b`）に**運転意思決定（throttle/steering）**をさせる研究・実験用プロトタイプです。
 
 このリポジトリは「LLM 主導の制御」を中心に、**安全ゲート（preflight / runtime guard）**、**観測可能性（telemetry / decision log）**、**再現性のある AB 実験**、**レポート生成（HTML/PDF）**を揃えることを主目的にしています。
 
 > 注意: これは実車制御ではありません（ブラウザ内シミュレーションです）。安全上の観点からも、実世界への転用を意図していません。
+
+## Video
+
+- デモ動画（YouTube / 限定公開）: https://www.youtube.com/watch?v=PSOt5-wIUtU
 
 ## Docs（研究レポート / 仕様 / 関連調査）
 
